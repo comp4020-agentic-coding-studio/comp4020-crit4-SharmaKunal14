@@ -26,7 +26,7 @@
       <div
         id="instrument"
         tabindex="0"
-        aria-label="Harmonium. Hold spacebar, or drag the bellows on the left, to pump air. Press keys z x c v b n m comma for the white keys and s d g h j for the black keys to play, or tap the keys directly."
+        aria-label="Harmonium spanning three octaves: mandra, madhya and taar saptak. Hold spacebar, or drag the bellows on the left, to pump air. Press keys across the keyboard's number, home and top rows to play each octave's notes, or tap the keys directly; scroll sideways to reach the full keyboard."
       >
         <div id="bellows" class="idle" aria-hidden="true">
           <div class="pleats">
@@ -38,7 +38,9 @@
             <div class="pleat"></div>
           </div>
         </div>
-        <div id="keys" aria-hidden="true"></div>
+        <div id="keysWrap" aria-hidden="true">
+          <div id="keys"></div>
+        </div>
       </div>
       <p id="status" class="visually-hidden" aria-live="polite"></p>
     </main>

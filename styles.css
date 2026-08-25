@@ -121,10 +121,16 @@ main {
 
 /* --- Keys --- */
 
+#keysWrap {
+  max-width: min(90vw, 64rem);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
 #keys {
   position: relative;
   height: clamp(9rem, 30vh, 14rem);
-  width: clamp(16rem, 45vw, 28rem);
 }
 
 .key {

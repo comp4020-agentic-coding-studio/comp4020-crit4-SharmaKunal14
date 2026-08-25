@@ -8,51 +8,74 @@ const keysEl = document.getElementById("keys");
 const status = document.getElementById("status");
 
 if (instrument && bellows && keysEl) {
-  // Madhya saptak (middle octave). A harmonium is a fixed-pitch keyboard, so
-  // unlike a voice it can't bend to the microtonal srutis of raga theory --
-  // it's built and tuned to plain 12-TET against a reference pitch, same as
-  // a piano. Sa is set here at concert pitch (C4, A4 = 440 Hz).
+  // Three saptaks laid out as one continuous strip, same as a real harmonium
+  // spans mandra (low) through madhya (middle) to taar (high): each octave
+  // contributes 12 new notes and no pitch repeats across the boundary. A
+  // harmonium is a fixed-pitch keyboard, so unlike a voice it can't bend to
+  // the microtonal srutis of raga theory -- it's built and tuned to plain
+  // 12-TET against a reference pitch, same as a piano. Sa is set here at
+  // concert pitch (madhya Sa = C4, A4 = 440 Hz).
   const SA_HZ = 261.6256;
   const cents = (c: number) => SA_HZ * Math.pow(2, c / 1200);
 
-  const WHITE = [
-    { note: "Sa", key: "z", cents: 0 },
-    { note: "Re", key: "x", cents: 200 },
-    { note: "Ga", key: "c", cents: 400 },
-    { note: "Ma", key: "v", cents: 500 },
-    { note: "Pa", key: "b", cents: 700 },
-    { note: "Dha", key: "n", cents: 900 },
-    { note: "Ni", key: "m", cents: 1100 },
-    { note: "Sa'", key: ",", cents: 1200 },
-  ];
-  const BLACK = [
-    { note: "re", key: "s", cents: 100, afterWhite: 0 },
-    { note: "ga", key: "d", cents: 300, afterWhite: 1 },
-    { note: "ma'", key: "g", cents: 600, afterWhite: 3 },
-    { note: "dha", key: "h", cents: 800, afterWhite: 4 },
-    { note: "ni", key: "j", cents: 1000, afterWhite: 5 },
+  type NoteKind = "white" | "black";
+  const OCTAVE_TEMPLATE: { note: string; kind: NoteKind; cents: number }[] = [
+    { note: "Sa", kind: "white", cents: 0 },
+    { note: "re", kind: "black", cents: 100 },
+    { note: "Re", kind: "white", cents: 200 },
+    { note: "ga", kind: "black", cents: 300 },
+    { note: "Ga", kind: "white", cents: 400 },
+    { note: "Ma", kind: "white", cents: 500 },
+    { note: "ma'", kind: "black", cents: 600 },
+    { note: "Pa", kind: "white", cents: 700 },
+    { note: "dha", kind: "black", cents: 800 },
+    { note: "Dha", kind: "white", cents: 900 },
+    { note: "ni", kind: "black", cents: 1000 },
+    { note: "Ni", kind: "white", cents: 1100 },
   ];
 
-  const whiteWidth = 100 / WHITE.length;
-  const blackWidth = whiteWidth * 0.62;
+  // mandra, madhya, taar -- one octave each, keys chosen so madhya keeps the
+  // exact bindings already tested (z x c v b n m / s d g h j).
+  const SAPTAK_OFFSETS = [-1200, 0, 1200];
+  const SAPTAK_KEYS = [
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "q", "w"],
+    ["z", "s", "x", "d", "c", "v", "g", "b", "h", "n", "j", "m"],
+    ["e", "r", "t", "y", "u", "i", "o", "p", "a", "f", "k", "l"],
+  ];
+
+  const NOTES: { note: string; kind: NoteKind; cents: number; key: string }[] = [];
+  SAPTAK_OFFSETS.forEach((offset, s) => {
+    OCTAVE_TEMPLATE.forEach((n, i) => {
+      NOTES.push({ note: n.note, kind: n.kind, cents: offset + n.cents, key: SAPTAK_KEYS[s][i] });
+    });
+  });
+  NOTES.push({ note: "Sa", kind: "white", cents: 2400, key: "," }); // closing top note
+
+  const WHITE_KEY_REM = 2.2;
+  const BLACK_KEY_REM = WHITE_KEY_REM * 0.62;
+  const whiteCount = NOTES.filter((n) => n.kind === "white").length;
+  keysEl.style.width = `${whiteCount * WHITE_KEY_REM}rem`;
 
   const keyByInputKey = new Map<string, { el: HTMLElement; freq: number }>();
 
-  WHITE.forEach((w, i) => {
+  let whiteIndex = 0;
+  NOTES.forEach((n) => {
     const el = document.createElement("div");
-    el.className = "key white";
-    el.style.left = `${i * whiteWidth}%`;
-    el.style.width = `${whiteWidth}%`;
-    keysEl.appendChild(el);
-    keyByInputKey.set(w.key, { el, freq: cents(w.cents) });
-  });
-  BLACK.forEach((b) => {
-    const el = document.createElement("div");
-    el.className = "key black";
-    el.style.left = `${(b.afterWhite + 1) * whiteWidth - blackWidth / 2}%`;
-    el.style.width = `${blackWidth}%`;
-    keysEl.appendChild(el);
-    keyByInputKey.set(b.key, { el, freq: cents(b.cents) });
+    const freq = cents(n.cents);
+    if (n.kind === "white") {
+      el.className = "key white";
+      el.style.left = `${whiteIndex * WHITE_KEY_REM}rem`;
+      el.style.width = `${WHITE_KEY_REM}rem`;
+      keysEl.appendChild(el);
+      keyByInputKey.set(n.key, { el, freq });
+      whiteIndex += 1;
+    } else {
+      el.className = "key black";
+      el.style.left = `${whiteIndex * WHITE_KEY_REM - BLACK_KEY_REM / 2}rem`;
+      el.style.width = `${BLACK_KEY_REM}rem`;
+      keysEl.appendChild(el);
+      keyByInputKey.set(n.key, { el, freq });
+    }
   });
 
   // --- Audio: each note is two reed banks (a hair detuned, like a real
