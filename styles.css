@@ -1,16 +1,106 @@
+:root {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
-  padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   font-family: system-ui, sans-serif;
-  line-height: 1.6;
-  color: #1a1a1a;
+  background: radial-gradient(circle at 50% 40%, #1c1030, #05010a 70%);
+  color: #e8e2ff;
+  overflow: hidden;
+}
+
+header {
+  padding: 0.5rem 1rem;
+}
+
+nav a {
+  color: #8f7bff;
+  text-decoration: none;
+  font-size: 0.85rem;
 }
 
 main {
-  max-width: 40rem;
-  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
-a {
-  color: #0b5fff;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+#strand {
+  position: relative;
+  width: min(90vw, 60rem);
+  height: min(40vh, 12rem);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #241a3f, #3a2a66 50%, #241a3f);
+  box-shadow:
+    0 0 3rem 0.5rem rgba(140, 100, 255, 0.25),
+    inset 0 0 2rem rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+#strand:focus-visible {
+  box-shadow:
+    0 0 3rem 0.75rem rgba(140, 100, 255, 0.45),
+    inset 0 0 2rem rgba(0, 0, 0, 0.4),
+    0 0 0 3px #b9a8ff;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.15);
+  }
+}
+
+.note-dot {
+  position: absolute;
+  top: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: #cabbff;
+  box-shadow: 0 0 0.6rem 0.15rem rgba(202, 187, 255, 0.6);
+  transform: translate(-50%, -50%) scale(1);
+  transition:
+    transform 0.08s ease-out,
+    background 0.08s ease-out;
+  pointer-events: none;
+}
+
+.note-dot.active {
+  background: #ffffff;
+  transform: translate(-50%, -50%) scale(1.9);
+  box-shadow: 0 0 1.5rem 0.4rem rgba(255, 255, 255, 0.85);
+}
+
+#glow {
+  position: absolute;
+  top: 50%;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 70%);
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  transition: transform 0.05s linear;
 }
