@@ -148,10 +148,15 @@ if (instrument && bellows && keysEl) {
   let pressure = 0;
   let dragY: number | null = null;
   let spaceHeld = false;
+  let spacePumpTimer = 0;
   let extension = 0.5;
   const PUMP_GAIN = 0.012;
   const HALF_LIFE_MS = 1400;
-  const SPACE_FILL_MS = 1100; // holding Space for this long fills from empty to full
+  // Space simulates a hand pumping the bellows: each stroke shoves in a slug
+  // of air that immediately starts leaking away via the same decay as a drag,
+  // rather than holding Space acting like a tap you can just leave open.
+  const SPACE_PUMP_INTERVAL_MS = 380;
+  const SPACE_PUMP_STEP = 0.35;
 
   const setPleats = (ext: number) => {
     const pleats = bellows.querySelectorAll<HTMLElement>(".pleat");
@@ -191,7 +196,13 @@ if (instrument && bellows && keysEl) {
     const dt = now - lastFrame;
     lastFrame = now;
     pressure *= Math.pow(0.5, dt / HALF_LIFE_MS);
-    if (spaceHeld) pressure = Math.min(1, pressure + dt / SPACE_FILL_MS);
+    if (spaceHeld) {
+      spacePumpTimer += dt;
+      if (spacePumpTimer >= SPACE_PUMP_INTERVAL_MS) {
+        spacePumpTimer -= SPACE_PUMP_INTERVAL_MS;
+        pressure = Math.min(1, pressure + SPACE_PUMP_STEP);
+      }
+    }
     bellows.style.setProperty("--pressure", pressure.toFixed(3));
     if (dragY === null) {
       extension = pressure;
@@ -215,6 +226,8 @@ if (instrument && bellows && keysEl) {
       if (!event.repeat) {
         endIdle();
         spaceHeld = true;
+        spacePumpTimer = 0;
+        pressure = Math.min(1, pressure + SPACE_PUMP_STEP);
         if (status) status.textContent = "Pumping";
       }
       return;
