@@ -18,19 +18,19 @@ describe("instrument: no fail state", () => {
 });
 
 describe("instrument: playable with whatever is at hand", () => {
-  it("has one surface that accepts pointer input", () => {
-    const strand = doc.getElementById("strand");
-    expect(strand, "the instrument surface must exist").toBeTruthy();
+  it("has a bellows surface and a keys surface", () => {
+    expect(doc.getElementById("bellows"), "the bellows must exist").toBeTruthy();
+    expect(doc.getElementById("keys"), "the keys area must exist").toBeTruthy();
   });
 
-  it("that surface is keyboard-reachable", () => {
-    const strand = doc.getElementById("strand");
-    expect(strand?.getAttribute("tabindex")).toBe("0");
+  it("the instrument is keyboard-reachable", () => {
+    const instrument = doc.getElementById("instrument");
+    expect(instrument?.getAttribute("tabindex")).toBe("0");
   });
 
   it("names itself for a screen reader without printing instructions on screen", () => {
-    const strand = doc.getElementById("strand");
-    expect(strand?.getAttribute("aria-label")).toBeTruthy();
+    const instrument = doc.getElementById("instrument");
+    expect(instrument?.getAttribute("aria-label")).toBeTruthy();
   });
 });
 

@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Strand</title>
+    <title>Harmonium</title>
     <meta
       name="description"
-      content="A one-string instrument played by dragging, tapping or pressing keys across a glowing strand."
+      content="A hand-pumped harmonium: drag the bellows to raise air pressure, then press keys to sing a reedy note for as long as you hold it."
     />
 
     <meta property="og:type" content="website" />
@@ -22,8 +22,24 @@
       </nav>
     </header>
     <main>
-      <h1 class="visually-hidden">Strand</h1>
-      <div id="strand" tabindex="0" aria-label="Strand instrument, drag or press keys to play"></div>
+      <h1 class="visually-hidden">Harmonium</h1>
+      <div
+        id="instrument"
+        tabindex="0"
+        aria-label="Harmonium. Drag the bellows on the left to pump air. Press keys z x c v b n m comma for the white keys and s d g h j for the black keys to play, or tap the keys directly."
+      >
+        <div id="bellows" aria-hidden="true">
+          <div class="pleats">
+            <div class="pleat"></div>
+            <div class="pleat"></div>
+            <div class="pleat"></div>
+            <div class="pleat"></div>
+            <div class="pleat"></div>
+            <div class="pleat"></div>
+          </div>
+        </div>
+        <div id="keys" aria-hidden="true"></div>
+      </div>
       <p id="status" class="visually-hidden" aria-live="polite"></p>
     </main>
     <script type="module" src="./main.ts"></script>

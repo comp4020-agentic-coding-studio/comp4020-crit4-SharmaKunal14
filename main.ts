@@ -1,161 +1,185 @@
-// Strand: a one-string instrument. Dragging or tapping across the glowing
-// bar bends pitch continuously; pressing a home-row key plucks one of the
-// eight notes the bar quietly marks. Both paths share the same pitch line,
-// so pointer and keyboard are two ways to play the same mechanic.
-const strand = document.getElementById("strand");
+// Harmonium: a hand-pumped free-reed keyboard. A reed only sounds while air
+// moves through it, so a key makes a tone only while it is held AND the
+// bellows has air in it -- drag the bellows (any direction) to pump air in;
+// it bleeds away on its own, same as the real instrument once you stop.
+const instrument = document.getElementById("instrument");
+const bellows = document.getElementById("bellows");
+const keysEl = document.getElementById("keys");
 const status = document.getElementById("status");
 
-if (strand) {
-  const NOTES = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25];
-  const KEYS = ["a", "s", "d", "f", "g", "h", "j", "k"];
-  const MIN_FREQ = NOTES[0];
-  const MAX_FREQ = NOTES[NOTES.length - 1];
+if (instrument && bellows && keysEl) {
+  const C4 = 261.6256;
+  const semitone = (n: number) => C4 * Math.pow(2, n / 12);
 
-  const glow = document.createElement("div");
-  glow.id = "glow";
-  strand.appendChild(glow);
+  const WHITE = [
+    { note: "Sa", key: "z", semitone: 0 },
+    { note: "Re", key: "x", semitone: 2 },
+    { note: "Ga", key: "c", semitone: 4 },
+    { note: "Ma", key: "v", semitone: 5 },
+    { note: "Pa", key: "b", semitone: 7 },
+    { note: "Dha", key: "n", semitone: 9 },
+    { note: "Ni", key: "m", semitone: 11 },
+    { note: "Sa'", key: ",", semitone: 12 },
+  ];
+  const BLACK = [
+    { note: "re", key: "s", semitone: 1, afterWhite: 0 },
+    { note: "ga", key: "d", semitone: 3, afterWhite: 1 },
+    { note: "ma'", key: "g", semitone: 6, afterWhite: 3 },
+    { note: "dha", key: "h", semitone: 8, afterWhite: 4 },
+    { note: "ni", key: "j", semitone: 10, afterWhite: 5 },
+  ];
 
-  const dots = NOTES.map((_, i) => {
-    const dot = document.createElement("div");
-    dot.className = "note-dot";
-    dot.style.left = `${((i + 0.5) / NOTES.length) * 100}%`;
-    strand.appendChild(dot);
-    return dot;
+  const whiteWidth = 100 / WHITE.length;
+  const blackWidth = whiteWidth * 0.62;
+
+  const keyByInputKey = new Map<string, { el: HTMLElement; freq: number }>();
+
+  WHITE.forEach((w, i) => {
+    const el = document.createElement("div");
+    el.className = "key white";
+    el.style.left = `${i * whiteWidth}%`;
+    el.style.width = `${whiteWidth}%`;
+    keysEl.appendChild(el);
+    keyByInputKey.set(w.key, { el, freq: semitone(w.semitone) });
+  });
+  BLACK.forEach((b) => {
+    const el = document.createElement("div");
+    el.className = "key black";
+    el.style.left = `${(b.afterWhite + 1) * whiteWidth - blackWidth / 2}%`;
+    el.style.width = `${blackWidth}%`;
+    keysEl.appendChild(el);
+    keyByInputKey.set(b.key, { el, freq: semitone(b.semitone) });
   });
 
+  // --- Audio: sawtooth reed through a resonant body filter, gated by a
+  // single master gain that tracks bellows pressure ---
   let audioCtx: AudioContext | null = null;
-  const master = { gain: null as GainNode | null };
+  let masterGain: GainNode | null = null;
 
   function ensureAudio() {
-    if (!audioCtx) {
+    if (!audioCtx || !masterGain) {
       audioCtx = new AudioContext();
-      const gain = audioCtx.createGain();
-      gain.gain.value = 0.9;
-      gain.connect(audioCtx.destination);
-      master.gain = gain;
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0;
+      masterGain.connect(audioCtx.destination);
     }
-    if (audioCtx.state === "suspended") {
-      void audioCtx.resume();
-    }
-    return audioCtx;
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+    return { ctx: audioCtx, master: masterGain };
   }
 
-  function freqFromX(fraction: number) {
-    const clamped = Math.min(1, Math.max(0, fraction));
-    return MIN_FREQ * Math.pow(MAX_FREQ / MIN_FREQ, clamped);
-  }
+  type Voice = { osc: OscillatorNode; filter: BiquadFilterNode; gain: GainNode };
+  const voices = new Map<string, Voice>();
 
-  function nearestDotIndex(freq: number) {
-    let best = 0;
-    let bestDist = Infinity;
-    NOTES.forEach((n, i) => {
-      const dist = Math.abs(Math.log(n / freq));
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = i;
-      }
-    });
-    return { index: best, closeness: Math.max(0, 1 - bestDist / 0.15) };
-  }
+  function pressKey(inputKey: string) {
+    const target = keyByInputKey.get(inputKey);
+    if (!target || voices.has(inputKey)) return;
+    const { ctx, master } = ensureAudio();
 
-  function lightNearest(freq: number) {
-    const { index, closeness } = nearestDotIndex(freq);
-    dots.forEach((dot, i) => {
-      dot.classList.toggle("active", i === index && closeness > 0.35);
-    });
-  }
-
-  type Voice = { osc: OscillatorNode; gain: GainNode };
-  const voices = new Map<string | number, Voice>();
-
-  function startVoice(id: string | number, freq: number, volume: number) {
-    const ctx = ensureAudio();
-    if (!master.gain) return;
     const osc = ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.value = freq;
+    osc.type = "sawtooth";
+    osc.frequency.value = target.freq;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = target.freq * 2.2;
+    filter.Q.value = 1.4;
+
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.03);
-    osc.connect(gain).connect(master.gain);
+    gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.012);
+
+    osc.connect(filter).connect(gain).connect(master);
     osc.start();
-    voices.set(id, { osc, gain });
+
+    voices.set(inputKey, { osc, filter, gain });
+    target.el.classList.add("active");
   }
 
-  function updateVoice(id: string | number, freq: number, volume: number) {
-    const voice = voices.get(id);
+  function releaseKey(inputKey: string) {
+    const voice = voices.get(inputKey);
+    const target = keyByInputKey.get(inputKey);
     if (!voice || !audioCtx) return;
-    voice.osc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.01);
-    voice.gain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.02);
+    voice.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.015);
+    voice.osc.stop(audioCtx.currentTime + 0.08);
+    voices.delete(inputKey);
+    target?.el.classList.remove("active");
   }
 
-  function stopVoice(id: string | number) {
-    const voice = voices.get(id);
-    if (!voice || !audioCtx) return;
-    const { osc, gain } = voice;
-    gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.08);
-    osc.stop(audioCtx.currentTime + 0.4);
-    voices.delete(id);
-  }
+  // --- Bellows: drag (any direction) pumps pressure in; it decays on its
+  // own. The pleats compress/expand with the raw drag; the glow behind them
+  // (see styles.css --pressure) tracks the decaying pressure value. ---
+  let pressure = 0;
+  let dragY: number | null = null;
+  let extension = 0.5;
+  const PUMP_GAIN = 0.012;
+  const HALF_LIFE_MS = 1400;
 
-  function pointerToState(event: PointerEvent) {
-    const rect = strand!.getBoundingClientRect();
-    const xFraction = (event.clientX - rect.left) / rect.width;
-    const yFraction = (event.clientY - rect.top) / rect.height;
-    const freq = freqFromX(xFraction);
-    const volume = 0.08 + (1 - Math.min(1, Math.max(0, yFraction))) * 0.22;
-    return { freq, volume, xFraction: Math.min(1, Math.max(0, xFraction)) };
-  }
+  const setPleats = (ext: number) => {
+    const pleats = bellows.querySelectorAll<HTMLElement>(".pleat");
+    pleats.forEach((pleat, i) => {
+      const spread = 0.3 + ext * 0.7;
+      pleat.style.transform = `scaleY(${spread})`;
+      void i;
+    });
+  };
+  setPleats(extension);
 
-  strand.addEventListener("pointerdown", (event) => {
-    strand.setPointerCapture(event.pointerId);
-    const { freq, volume, xFraction } = pointerToState(event);
-    startVoice(event.pointerId, freq, volume);
-    glow.style.left = `${xFraction * 100}%`;
-    glow.style.transform = "translate(-50%, -50%) scale(1)";
-    lightNearest(freq);
-    if (status) status.textContent = "Playing";
+  bellows.addEventListener("pointerdown", (event) => {
+    bellows.setPointerCapture(event.pointerId);
+    dragY = event.clientY;
   });
 
-  strand.addEventListener("pointermove", (event) => {
-    if (!voices.has(event.pointerId)) return;
-    const { freq, volume, xFraction } = pointerToState(event);
-    updateVoice(event.pointerId, freq, volume);
-    glow.style.left = `${xFraction * 100}%`;
-    lightNearest(freq);
+  bellows.addEventListener("pointermove", (event) => {
+    if (dragY === null) return;
+    const delta = event.clientY - dragY;
+    dragY = event.clientY;
+    pressure = Math.min(1, pressure + Math.abs(delta) * PUMP_GAIN);
+    extension = Math.min(1, Math.max(0, extension + delta * 0.01));
+    setPleats(extension);
+    if (status) status.textContent = "Pumping";
   });
 
-  function releasePointer(event: PointerEvent) {
-    if (!voices.has(event.pointerId)) return;
-    stopVoice(event.pointerId);
-    glow.style.transform = "translate(-50%, -50%) scale(0)";
-    dots.forEach((dot) => dot.classList.remove("active"));
+  function stopDrag() {
+    dragY = null;
     if (status) status.textContent = "";
   }
+  bellows.addEventListener("pointerup", stopDrag);
+  bellows.addEventListener("pointercancel", stopDrag);
 
-  strand.addEventListener("pointerup", releasePointer);
-  strand.addEventListener("pointercancel", releasePointer);
+  let lastFrame = performance.now();
+  const tick = (now: number) => {
+    const dt = now - lastFrame;
+    lastFrame = now;
+    pressure *= Math.pow(0.5, dt / HALF_LIFE_MS);
+    bellows.style.setProperty("--pressure", pressure.toFixed(3));
+    if (masterGain && audioCtx) {
+      masterGain.gain.setTargetAtTime(pressure, audioCtx.currentTime, 0.02);
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 
-  const heldKeys = new Set<string>();
-
+  // --- Keyboard + pointer/touch input for the keys ---
   window.addEventListener("keydown", (event) => {
+    if (event.repeat) return;
     const key = event.key.toLowerCase();
-    const index = KEYS.indexOf(key);
-    if (index === -1 || heldKeys.has(key)) return;
-    heldKeys.add(key);
-    const freq = NOTES[index];
-    startVoice(`key-${key}`, freq, 0.22);
-    dots[index]?.classList.add("active");
-    if (status) status.textContent = "Playing";
+    if (keyByInputKey.has(key)) pressKey(key);
   });
-
   window.addEventListener("keyup", (event) => {
     const key = event.key.toLowerCase();
-    if (!heldKeys.has(key)) return;
-    heldKeys.delete(key);
-    stopVoice(`key-${key}`);
-    const index = KEYS.indexOf(key);
-    dots[index]?.classList.remove("active");
-    if (status) status.textContent = "";
+    if (keyByInputKey.has(key)) releaseKey(key);
+  });
+
+  keysEl.querySelectorAll<HTMLElement>(".key").forEach((el) => {
+    const entry = [...keyByInputKey.entries()].find(([, v]) => v.el === el);
+    if (!entry) return;
+    const [inputKey] = entry;
+    el.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      el.setPointerCapture(event.pointerId);
+      pressKey(inputKey);
+    });
+    el.addEventListener("pointerup", () => releaseKey(inputKey));
+    el.addEventListener("pointercancel", () => releaseKey(inputKey));
   });
 }
