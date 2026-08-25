@@ -135,14 +135,18 @@ if (instrument && bellows && keysEl) {
     target?.el.classList.remove("active");
   }
 
-  // --- Bellows: drag (any direction) pumps pressure in; it decays on its
-  // own. The pleats compress/expand with the raw drag; the glow behind them
-  // (see styles.css --pressure) tracks the decaying pressure value. ---
+  // --- Bellows: drag (any direction) or hold Space pumps pressure in; it
+  // decays on its own the moment you stop. The pleats always show the
+  // current pressure -- fuller when there's more air -- except while you're
+  // actively dragging, where they follow your hand instead. The glow behind
+  // them (see styles.css --pressure) tracks the same value. ---
   let pressure = 0;
   let dragY: number | null = null;
+  let spaceHeld = false;
   let extension = 0.5;
   const PUMP_GAIN = 0.012;
   const HALF_LIFE_MS = 1400;
+  const SPACE_FILL_MS = 1100; // holding Space for this long fills from empty to full
 
   const setPleats = (ext: number) => {
     const pleats = bellows.querySelectorAll<HTMLElement>(".pleat");
@@ -171,7 +175,7 @@ if (instrument && bellows && keysEl) {
 
   function stopDrag() {
     dragY = null;
-    if (status) status.textContent = "";
+    if (status && !spaceHeld) status.textContent = "";
   }
   bellows.addEventListener("pointerup", stopDrag);
   bellows.addEventListener("pointercancel", stopDrag);
@@ -181,7 +185,12 @@ if (instrument && bellows && keysEl) {
     const dt = now - lastFrame;
     lastFrame = now;
     pressure *= Math.pow(0.5, dt / HALF_LIFE_MS);
+    if (spaceHeld) pressure = Math.min(1, pressure + dt / SPACE_FILL_MS);
     bellows.style.setProperty("--pressure", pressure.toFixed(3));
+    if (dragY === null) {
+      extension = pressure;
+      setPleats(extension);
+    }
     if (masterGain && audioCtx) {
       masterGain.gain.setTargetAtTime(pressure, audioCtx.currentTime, 0.02);
       voices.forEach((voice, inputKey) => {
@@ -193,13 +202,26 @@ if (instrument && bellows && keysEl) {
   };
   requestAnimationFrame(tick);
 
-  // --- Keyboard + pointer/touch input for the keys ---
+  // --- Keyboard + pointer/touch input for the keys, Space for the bellows ---
   window.addEventListener("keydown", (event) => {
+    if (event.code === "Space") {
+      event.preventDefault();
+      if (!event.repeat) {
+        spaceHeld = true;
+        if (status) status.textContent = "Pumping";
+      }
+      return;
+    }
     if (event.repeat) return;
     const key = event.key.toLowerCase();
     if (keyByInputKey.has(key)) pressKey(key);
   });
   window.addEventListener("keyup", (event) => {
+    if (event.code === "Space") {
+      spaceHeld = false;
+      if (status && dragY === null) status.textContent = "";
+      return;
+    }
     const key = event.key.toLowerCase();
     if (keyByInputKey.has(key)) releaseKey(key);
   });
