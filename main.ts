@@ -8,28 +8,28 @@ const keysEl = document.getElementById("keys");
 const status = document.getElementById("status");
 
 if (instrument && bellows && keysEl) {
-  // Madhya saptak (middle octave) tuned from measured harmonium reed
-  // frequencies with Sa at natural C (Patel & Iversen, 2008), given here as
-  // cents-from-Sa so the whole keyboard is still movable-Sa. Sudh Ni wasn't
-  // reported in that dataset; 1100c (12-TET) fills the one gap.
-  const SA_HZ = 243.2661;
+  // Madhya saptak (middle octave). A harmonium is a fixed-pitch keyboard, so
+  // unlike a voice it can't bend to the microtonal srutis of raga theory --
+  // it's built and tuned to plain 12-TET against a reference pitch, same as
+  // a piano. Sa is set here at concert pitch (C4, A4 = 440 Hz).
+  const SA_HZ = 261.6256;
   const cents = (c: number) => SA_HZ * Math.pow(2, c / 1200);
 
   const WHITE = [
     { note: "Sa", key: "z", cents: 0 },
-    { note: "Re", key: "x", cents: 196 },
-    { note: "Ga", key: "c", cents: 393 },
-    { note: "Ma", key: "v", cents: 494 },
-    { note: "Pa", key: "b", cents: 699 },
-    { note: "Dha", key: "n", cents: 897 },
+    { note: "Re", key: "x", cents: 200 },
+    { note: "Ga", key: "c", cents: 400 },
+    { note: "Ma", key: "v", cents: 500 },
+    { note: "Pa", key: "b", cents: 700 },
+    { note: "Dha", key: "n", cents: 900 },
     { note: "Ni", key: "m", cents: 1100 },
     { note: "Sa'", key: ",", cents: 1200 },
   ];
   const BLACK = [
-    { note: "re", key: "s", cents: 99, afterWhite: 0 },
-    { note: "ga", key: "d", cents: 290, afterWhite: 1 },
-    { note: "ma'", key: "g", cents: 598, afterWhite: 3 },
-    { note: "dha", key: "h", cents: 799, afterWhite: 4 },
+    { note: "re", key: "s", cents: 100, afterWhite: 0 },
+    { note: "ga", key: "d", cents: 300, afterWhite: 1 },
+    { note: "ma'", key: "g", cents: 600, afterWhite: 3 },
+    { note: "dha", key: "h", cents: 800, afterWhite: 4 },
     { note: "ni", key: "j", cents: 1000, afterWhite: 5 },
   ];
 
