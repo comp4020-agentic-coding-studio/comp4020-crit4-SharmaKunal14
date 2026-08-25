@@ -1,85 +1,72 @@
 # Process overview
 
-<!-- TEMPLATE: this file is a shape to fill in, not a form. Replace everything
-     in it with your own overview, and delete this comment — `pnpm
-     check:evidence` will remind you if it's still here. -->
-
-A reading-guide to how the work came together --- a map to your process, not an
-essay about it. Markers read this file and follow its citations; they don't
-trawl the repo for evidence you didn't point at, so if a moment mattered, cite
-it.
-
-This file is the shape; the course site's
-[assessment page](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/assessment/#what-you-submit)
-is the requirement, and its
-[word counts](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/assessment/#word-counts)
-cover every deliverable.
-
 ## What I built
 
-One paragraph: the thing, and the idea behind it.
+Harmonium: a hand-pumped, bellows-driven free-reed keyboard spanning all three
+saptaks (mandra, madhya, taar — 37 keys total). A key only sounds while it's
+held *and* the bellows has air in it, same as the real instrument — drag the
+bellows or hold Space to pump air in, and it bleeds away on its own the moment
+you stop. Started as a different idea (a one-string "Strand" instrument) and
+was rebuilt from scratch once the harmonium concept felt like it gave more
+room for expressive, physically-grounded interaction.
 
 ## The moments that mattered
 
-Three or four for an assignment; fewer is fine for a weekly prototype. Keep the
-list short so each moment has room to do all four jobs:
+1. **Strand wasn't going anywhere expressive, so I threw it out rather than
+   patch it.** The one-string instrument satisfied the spec mechanically but
+   didn't feel like it rewarded skill or gave two players different results.
+   Rather than keep iterating on it, I replaced it outright with the harmonium
+   concept, which has a much richer physical model (bellows pressure, reed
+   pairs, tone-chamber resonance) to build expressiveness around.
+   [`e871942`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/e871942)
 
-1. **what happened** --- the problem, or the thing that went wrong
-2. **what you did instead of the obvious thing** --- the call you made, and why
-   it beat the obvious one
-3. **how you knew it was right** --- the check you ran, the viewport you looked
-   at, what you read before accepting the diff
-4. **the citation** --- a commit or commit range, a `CLAUDE.md` change, a check
-   that went from red to green, a prompt paired with the commit it produced
+2. **The Space-bar bellows control didn't match how a real pump works, and I
+   caught it on the first pass.** My first implementation held pressure at max
+   for as long as Space was down and let it decay only on release. I corrected
+   this to fire repeated pump strokes on an interval while held
+   ([`425f4ca`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/425f4ca)),
+   but on trying it, that still wasn't the real gesture: a real pump fills once
+   per stroke and leaks continuously afterwards, *even while your hand is still
+   on it*. I rewrote it as a single ease-out swell per fresh keydown
+   (`!event.repeat`), followed by the same continuous exponential decay a drag
+   uses, with re-swelling gated strictly to a new press rather than a hold
+   ([`6d8c8c4`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/6d8c8c4)).
+   I verified this with a Playwright script driving a single 4.5s Space hold
+   and reading the live `--pressure` CSS variable every frame: it rose to a
+   peak (~0.54) around 150ms in, then declined monotonically to the end with
+   no re-swell — confirming the hold genuinely behaves as one stroke, not a
+   repeating pump.
 
-Jobs 2 and 3 are the ones the repo can't tell a reader on its own, so they're
-where the marks are. The strongest moments are the ones where a correction
-landed in the **harness** --- the standards and checks your work has to satisfy
---- rather than in a retry: a rule added to `CLAUDE.md`, a check wired up, an
-attempt thrown away. Retrying until it passes is the routine case, and changing
-what the work runs against is the skilled one.
+3. **Tuning against a real reference instead of guessing frequencies.** Early
+   notes were picked from a single sample rather than a tuning standard, which
+   meant nothing was actually in tune with anything else. I retuned the whole
+   note table to 12-TET against A4 = 440 Hz, with madhya Sa fixed at C4, and
+   modelled the harmonium's actual timbre (paired detuned reeds beating against
+   each other, run through a fixed formant peak at ~3x the fundamental for the
+   tone-chamber resonance) rather than a bare oscillator.
+   [`0ddf71d`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/0ddf71d)
+   →
+   [`eeb645b`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/eeb645b)
 
-Cite each moment as a link whose text is the commit hash or range and whose
-target is this repo's commit or compare URL, so a reader clicks straight to the
-evidence:
+4. **Discoverability check turned up a real "stranger can't play it uninstructed"
+   gap.** With no on-screen text allowed by spec, there was nothing inviting a
+   first-time player to touch the bellows before trying a key (which makes no
+   sound without air). I added a slow breathing glow on the bellows that
+   retires permanently after the first real interaction, verified by loading
+   the page cold in a fresh browser context and confirming the glow disappears
+   on first touch.
+   [`cdd929b`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/cdd929b)
 
-- one commit: [`a1b2c3d`](https://github.com/YOUR-ORG/YOUR-REPO/commit/a1b2c3d)
-- a range:
-  [`a1b2c3d...e4f5a6b`](https://github.com/YOUR-ORG/YOUR-REPO/compare/a1b2c3d...e4f5a6b)
-
-To pair a prompt with the commit it produced, quote the prompt (curated, not a
-full transcript) next to the citation:
-
-> the prompt, verbatim
-
-Screenshots are welcome where one carries the verification better than a
-sentence does. Commit the file to this repo and link it with a **relative**
-path, which is what makes it render on GitHub: `![alt text](docs/before.png)`.
-Images don't count towards the word count and don't replace the citation.
-
-### A worked moment, for shape
-
-Delete this section along with the rest of the boilerplate --- it's here to show
-the four jobs in one paragraph, not to be imitated in content.
-
-> The date formatter kept coming back with `toLocaleDateString()` and no locale
-> argument, so the same build rendered differently on my machine and in CI. I'd
-> already re-prompted it twice, which fixed the line but not the habit, so the
-> third time I put the rule in `CLAUDE.md` instead
-> ([`3f9ac21`](https://github.com/YOUR-ORG/YOUR-REPO/commit/3f9ac21)) and added
-> a spec test that fails on a bare `toLocaleDateString`. That's what told me it
-> had actually taken: the test went red against the old code and green against
-> the new, and the next two features it wrote passed it without prompting
-> ([`3f9ac21...b7e0d14`](https://github.com/YOUR-ORG/YOUR-REPO/compare/3f9ac21...b7e0d14)).
+5. **Scaling from one octave to three needed a layout rule, not just more
+   keys.** Naively sizing 37 white keys as a percentage of the container would
+   have shrunk touch targets to unusable sizes on a phone. I switched to
+   fixed-rem key widths and wrapped the keyboard in a horizontally-scrollable
+   container instead, verified at a 390px mobile viewport by comparing
+   `#keysWrap`'s visible width (351px) against `#keys`'s full scroll width
+   (776px) and reviewing the rendered screenshot.
+   [`2b80ec1`](https://github.com/comp4020-agentic-coding-studio/comp4020-crit4-SharmaKunal14/commit/2b80ec1)
 
 ## Before you ship
 
-`pnpm check:evidence` verifies your citations resolve to real commits, that a
-reflection entry the marker reads is in `reflections/`, and that your
-`CLAUDE.md` is there --- before a marker ever opens the file. It checks that
-your map is traceable, not that it is good: the marker judges whether your
-small, deliberately chosen set of moments shows real judgement and reflection. A
-green check is not a substitute for that curation.
-
-Images aren't checked: whether one renders is visible the moment you look. Open
-this file on GitHub and look at it before you ship.
+`pnpm check:evidence` verifies citations resolve to real commits and that a
+reflection entry is present.
