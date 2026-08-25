@@ -76,10 +76,15 @@ if (instrument && bellows && keysEl) {
 
   const DETUNE_CENTS = 7;
 
+  // The idle glow on the bellows invites a first touch; any real
+  // interaction -- pumping or trying a key -- retires it for good.
+  const endIdle = () => bellows.classList.remove("idle");
+
   type Voice = { oscs: OscillatorNode[]; body: BiquadFilterNode; gain: GainNode };
   const voices = new Map<string, Voice>();
 
   function pressKey(inputKey: string) {
+    endIdle();
     const target = keyByInputKey.get(inputKey);
     if (!target || voices.has(inputKey)) return;
     const { ctx, master } = ensureAudio();
@@ -159,6 +164,7 @@ if (instrument && bellows && keysEl) {
   setPleats(extension);
 
   bellows.addEventListener("pointerdown", (event) => {
+    endIdle();
     bellows.setPointerCapture(event.pointerId);
     dragY = event.clientY;
   });
@@ -207,6 +213,7 @@ if (instrument && bellows && keysEl) {
     if (event.code === "Space") {
       event.preventDefault();
       if (!event.repeat) {
+        endIdle();
         spaceHeld = true;
         if (status) status.textContent = "Pumping";
       }

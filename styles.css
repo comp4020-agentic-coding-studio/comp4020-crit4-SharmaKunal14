@@ -57,6 +57,7 @@ main {
 
 #bellows {
   --pressure: 0;
+  position: relative;
   width: clamp(4rem, 10vw, 6rem);
   display: flex;
   align-items: center;
@@ -69,6 +70,36 @@ main {
     0 0 calc(1rem + 3rem * var(--pressure)) calc(0.2rem + 0.8rem * var(--pressure))
       rgba(232, 185, 106, calc(0.15 + 0.55 * var(--pressure))),
     inset 0 0 1.5rem rgba(0, 0, 0, 0.6);
+}
+
+/* A slow breathing glow invites a stranger to touch the bellows first,
+   since pressing a key before there's air makes no sound. Stops for good
+   the moment there's been any real interaction. */
+#bellows.idle::after {
+  content: "";
+  position: absolute;
+  inset: -0.6rem;
+  border-radius: inherit;
+  box-shadow: 0 0 2rem 0.4rem rgba(232, 185, 106, 0.45);
+  animation: breathe 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #bellows.idle::after {
+    animation: none;
+    opacity: 0.5;
+  }
 }
 
 .pleats {
