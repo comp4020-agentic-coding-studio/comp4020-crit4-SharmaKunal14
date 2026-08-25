@@ -116,7 +116,7 @@ main {
   background: linear-gradient(90deg, #7a4a22, #b97a3c 50%, #7a4a22);
   border-radius: 2px;
   transform-origin: center;
-  transition: transform 0.03s linear;
+  transition: transform 0.12s ease-out;
 }
 
 /* --- Keys --- */

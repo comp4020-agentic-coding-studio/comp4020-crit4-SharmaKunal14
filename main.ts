@@ -148,15 +148,21 @@ if (instrument && bellows && keysEl) {
   let pressure = 0;
   let dragY: number | null = null;
   let spaceHeld = false;
-  let spacePumpTimer = 0;
   let extension = 0.5;
   const PUMP_GAIN = 0.012;
   const HALF_LIFE_MS = 1400;
-  // Space simulates a hand pumping the bellows: each stroke shoves in a slug
-  // of air that immediately starts leaking away via the same decay as a drag,
-  // rather than holding Space acting like a tap you can just leave open.
-  const SPACE_PUMP_INTERVAL_MS = 380;
-  const SPACE_PUMP_STEP = 0.35;
+
+  // Space simulates one pump stroke per press: pressure eases up to a target
+  // over a short natural swell, then leaks away via the same decay a drag
+  // uses -- even if Space is still held down. Only a fresh press (not the
+  // hold) starts another swell, same as a hand has to lift and push again.
+  const PUMP_STEP = 0.55;
+  const PUMP_RAMP_MS = 260;
+  let pumpRampActive = false;
+  let pumpRampStart = 0;
+  let pumpRampFrom = 0;
+  let pumpRampTo = 0;
+  const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
   const setPleats = (ext: number) => {
     const pleats = bellows.querySelectorAll<HTMLElement>(".pleat");
@@ -195,13 +201,12 @@ if (instrument && bellows && keysEl) {
   const tick = (now: number) => {
     const dt = now - lastFrame;
     lastFrame = now;
-    pressure *= Math.pow(0.5, dt / HALF_LIFE_MS);
-    if (spaceHeld) {
-      spacePumpTimer += dt;
-      if (spacePumpTimer >= SPACE_PUMP_INTERVAL_MS) {
-        spacePumpTimer -= SPACE_PUMP_INTERVAL_MS;
-        pressure = Math.min(1, pressure + SPACE_PUMP_STEP);
-      }
+    if (pumpRampActive) {
+      const t = Math.min(1, (now - pumpRampStart) / PUMP_RAMP_MS);
+      pressure = pumpRampFrom + (pumpRampTo - pumpRampFrom) * easeOutCubic(t);
+      if (t >= 1) pumpRampActive = false;
+    } else {
+      pressure *= Math.pow(0.5, dt / HALF_LIFE_MS);
     }
     bellows.style.setProperty("--pressure", pressure.toFixed(3));
     if (dragY === null) {
@@ -226,8 +231,10 @@ if (instrument && bellows && keysEl) {
       if (!event.repeat) {
         endIdle();
         spaceHeld = true;
-        spacePumpTimer = 0;
-        pressure = Math.min(1, pressure + SPACE_PUMP_STEP);
+        pumpRampFrom = pressure;
+        pumpRampTo = Math.min(1, pressure + PUMP_STEP);
+        pumpRampStart = performance.now();
+        pumpRampActive = true;
         if (status) status.textContent = "Pumping";
       }
       return;
